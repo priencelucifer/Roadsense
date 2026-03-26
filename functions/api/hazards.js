@@ -54,7 +54,7 @@ export async function onRequestPost(context) {
     const { lat, lng, type, severity, secret_key } = body;
 
     // 1. Validate Secret Key
-    if (secret_key !== "guwahati_tracker_v1") {
+    if (secret_key !== context.env.API_SECRET_KEY) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
     }
 
