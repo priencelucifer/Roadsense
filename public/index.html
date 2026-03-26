@@ -85,7 +85,6 @@
     </nav>
 
     <script>
-        const API_BASE = 'https://roadsense-app-v2.pages.dev';
         const MAPBOX_TOKEN = 'pk.eyJ1Ijoicmlja3k5NjY5IiwiYSI6ImNtbjRwZm1odDAyZjYycnM5dmNybWxqZG0ifQ.W9UjjaYKr6l7bNxuSdHQZA';
         mapboxgl.accessToken = MAPBOX_TOKEN;
 
@@ -185,7 +184,7 @@
         }
 
         async function fetchHazards(query = '') {
-            const url = query ? `${API_BASE}/api/search?q=${encodeURIComponent(query)}` : `${API_BASE}/api/hazards`;
+            const url = query ? `/api/search?q=${encodeURIComponent(query)}` : '/api/hazards';
             const res = await fetch(url);
             const data = await res.json();
             hazardsData = data;
@@ -214,6 +213,12 @@
                 list.appendChild(item);
             });
         }
+
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                fetchHazards(e.target.value);
+            }
+        });
 
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
         function showMap() { document.getElementById('sidebar').classList.add('-translate-x-full'); }
