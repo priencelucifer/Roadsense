@@ -14,12 +14,19 @@
         .font-headline { font-family: 'Space+Grotesk', sans-serif; }
         #map { height: 100%; width: 100%; position: absolute; top: 0; bottom: 0; }
         .mapboxgl-popup-content { background: #18181b; color: white; border: 1px solid #27272a; border-radius: 12px; }
+        .drive-mode-overlay { pointer-events: none; border: 4px solid #ef4444; z-index: 100; display: none; }
     </style>
 </head>
 <body class="bg-zinc-950 text-white overflow-hidden flex flex-col h-screen">
-    <!-- Top Bar (Mobile) -->
-    <header class="lg:hidden p-4 bg-zinc-900 border-b border-zinc-800 flex justify-between items-center z-30">
+    <div id="driveModeBorder" class="fixed inset-0 drive-mode-overlay"></div>
+
+    <!-- Top Bar -->
+    <header class="p-4 bg-zinc-900 border-b border-zinc-800 flex justify-between items-center z-30">
         <h1 class="text-xl font-bold font-headline tracking-tighter text-red-500">RoadSense</h1>
+        <button id="driveModeBtn" onclick="toggleDriveMode()" class="bg-zinc-800 px-4 py-1.5 rounded-full text-xs font-bold border border-zinc-700 active:scale-95 transition flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm">directions_car</span>
+            DRIVE MODE: OFF
+        </button>
     </header>
 
     <div class="flex-1 flex flex-col lg:flex-row relative overflow-hidden">
@@ -46,8 +53,7 @@
         <main class="flex-1 relative">
             <div id="map"></div>
             
-            <!-- Floating Action Buttons -->
-            <div class="absolute bottom-20 right-4 lg:bottom-6 lg:right-6 z-20 flex flex-col gap-3">
+            <div class="absolute bottom-24 right-4 lg:bottom-6 lg:right-6 z-20 flex flex-col gap-3">
                 <button onclick="fetchHazards()" class="bg-zinc-900/90 backdrop-blur-md p-3 rounded-full border border-zinc-800 text-white shadow-2xl active:scale-90 transition">
                     <span class="material-symbols-outlined">refresh</span>
                 </button>
@@ -58,143 +64,168 @@
         </main>
     </div>
 
-    <!-- Bottom Navigation (Mobile) -->
+    <!-- Bottom Navigation -->
     <nav id="bottomNav" class="lg:hidden grid grid-cols-3 bg-zinc-900/95 backdrop-blur-lg border-t border-zinc-800 h-16 z-50 fixed bottom-0 left-0 right-0">
-        <button onclick="showMap()" id="navMap" class="flex flex-col items-center justify-center text-red-500 transition-colors">
+        <button onclick="showMap()" id="navMap" class="flex flex-col items-center justify-center text-red-500">
             <span class="material-symbols-outlined">map</span>
             <span class="text-[10px] font-bold uppercase mt-0.5">Map</span>
         </button>
-        <button onclick="toggleSidebar()" id="navHazards" class="flex flex-col items-center justify-center text-zinc-400 transition-colors">
+        <button onclick="toggleSidebar()" id="navHazards" class="flex flex-col items-center justify-center text-zinc-400">
             <span class="material-symbols-outlined">warning</span>
             <span class="text-[10px] font-bold uppercase mt-0.5">Hazards</span>
         </button>
-        <button onclick="focusSearch()" class="flex flex-col items-center justify-center text-zinc-400 transition-colors">
+        <button onclick="focusSearch()" class="flex flex-col items-center justify-center text-zinc-400">
             <span class="material-symbols-outlined">search</span>
             <span class="text-[10px] font-bold uppercase mt-0.5">Search</span>
         </button>
     </nav>
 
+    <!-- Capacitor JS -->
+    <script src="capacitor.js"></script>
     <script>
+        const API_BASE = 'https://main.roadsense-dashboard.pages.dev';
         const MAPBOX_TOKEN = 'pk.eyJ1Ijoicmlja3k5NjY5IiwiYSI6ImNtbjRwZm1odDAyZjYycnM5dmNybWxqZG0ifQ.W9UjjaYKr6l7bNxuSdHQZA';
         mapboxgl.accessToken = MAPBOX_TOKEN;
-        
+
+        // Capacitor Plugins
+        const { Geolocation } = Capacitor.Plugins;
+        const { TextToSpeech } = Capacitor.Plugins;
+
         const map = new mapboxgl.Map({
             container: 'map',
             style: 'mapbox://styles/mapbox/dark-v11',
-            center: [91.7362, 26.1445], // Default: Guwahati
+            center: [91.7362, 26.1445],
             zoom: 11,
             attributionControl: false
         });
 
-        const geolocate = new mapboxgl.GeolocateControl({
-            positionOptions: { enableHighAccuracy: true },
-            trackUserLocation: true,
-            showUserHeading: true
-        });
-        map.addControl(geolocate);
-        // Hide the default button to use our custom one
-        geolocate.on('geolocate', () => {}); 
-        document.getElementById('geolocateBtn').onclick = () => geolocate.trigger();
-
         let markers = [];
+        let hazardsData = [];
+        let isDriveMode = false;
+        let watchId = null;
 
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const isClosing = !sidebar.classList.contains('-translate-x-full');
-            sidebar.classList.toggle('-translate-x-full');
-            
-            // Update nav colors
-            document.getElementById('navHazards').classList.toggle('text-red-500', !isClosing);
-            document.getElementById('navHazards').classList.toggle('text-zinc-400', isClosing);
-            document.getElementById('navMap').classList.toggle('text-zinc-400', !isClosing);
-            document.getElementById('navMap').classList.toggle('text-red-500', isClosing);
-        }
-
-        function showMap() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.add('-translate-x-full');
-            document.getElementById('navHazards').className = 'flex flex-col items-center justify-center text-zinc-400 transition-colors';
-            document.getElementById('navMap').className = 'flex flex-col items-center justify-center text-red-500 transition-colors';
-        }
-
-        function focusSearch() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.remove('-translate-x-full');
-            setTimeout(() => document.getElementById('searchInput').focus(), 300);
-            document.getElementById('navHazards').className = 'flex flex-col items-center justify-center text-red-500 transition-colors';
-            document.getElementById('navMap').className = 'flex flex-col items-center justify-center text-zinc-400 transition-colors';
-        }
-
-        async function geocodeAndFly(query) {
-            const geocodeUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&limit=1`;
-            const geoRes = await fetch(geocodeUrl);
-            const geoData = await geoRes.json();
-            
-            if (geoData.features && geoData.features.length > 0) {
-                const [lng, lat] = geoData.features[0].center;
-                map.flyTo({ center: [lng, lat], zoom: 16 });
-                if (window.innerWidth < 1024) toggleSidebar();
+        async function speak(text) {
+            try {
+                await TextToSpeech.speak({
+                    text: text,
+                    lang: 'en-US',
+                    rate: 1.0,
+                    pitch: 1.0,
+                    volume: 1.0,
+                    category: 'ambient'
+                });
+            } catch (e) {
+                console.error('Speech error', e);
             }
         }
 
-        async function fetchHazards(query = '') {
-            // Geocode city first if query is present
-            if (query) await geocodeAndFly(query);
+        async function toggleDriveMode() {
+            isDriveMode = !isDriveMode;
+            const btn = document.getElementById('driveModeBtn');
+            const border = document.getElementById('driveModeBorder');
 
-            const url = query ? `/api/search?q=${encodeURIComponent(query)}` : '/api/hazards';
+            if (isDriveMode) {
+                btn.classList.replace('bg-zinc-800', 'bg-red-600');
+                btn.innerHTML = `<span class="material-symbols-outlined text-sm">directions_car</span> DRIVE MODE: ON`;
+                border.style.display = 'block';
+                await speak("Drive mode activated. Monitoring for road hazards.");
+                startTracking();
+            } else {
+                btn.classList.replace('bg-red-600', 'bg-zinc-800');
+                btn.innerHTML = `<span class="material-symbols-outlined text-sm">directions_car</span> DRIVE MODE: OFF`;
+                border.style.display = 'none';
+                stopTracking();
+            }
+        }
+
+        async function startTracking() {
+            watchId = await Geolocation.watchPosition({
+                enableHighAccuracy: true,
+                timeout: 5000
+            }, (position, err) => {
+                if (err) return;
+                const { latitude, longitude } = position.coords;
+                checkProximity(latitude, longitude);
+                map.setCenter([longitude, latitude]);
+            });
+        }
+
+        function stopTracking() {
+            if (watchId) {
+                Geolocation.clearWatch({ id: watchId });
+                watchId = null;
+            }
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // meters
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        let lastAlertTime = 0;
+        function checkProximity(lat, lng) {
+            hazardsData.forEach(h => {
+                const dist = calculateDistance(lat, lng, h.lat, h.lng);
+                if (dist < 50 && (Date.now() - lastAlertTime > 10000)) { // 50 meters, 10s cooldown
+                    speak(`Warning! ${h.type} ahead.`);
+                    lastAlertTime = Date.now();
+                }
+            });
+        }
+
+        async function fetchHazards(query = '') {
+            const url = query ? `${API_BASE}/api/search?q=${encodeURIComponent(query)}` : `${API_BASE}/api/hazards`;
             const res = await fetch(url);
             const data = await res.json();
+            hazardsData = data;
             
-            // Clear markers
             markers.forEach(m => m.remove());
             markers = [];
-            
             const list = document.getElementById('hazardList');
             list.innerHTML = '';
 
             data.forEach(h => {
                 const el = document.createElement('div');
-                el.className = 'w-3 h-3 rounded-full border-2 border-white shadow-lg ' + 
-                    (h.severity > 7 ? 'bg-red-500 animate-pulse' : 'bg-yellow-500');
-                
-                const marker = new mapboxgl.Marker(el)
-                    .setLngLat([h.lng, h.lat])
-                    .setPopup(new mapboxgl.Popup({ offset: 15 }).setHTML(`
-                        <div class="p-1">
-                            <h3 class="font-bold text-red-400 text-sm uppercase">${h.type}</h3>
-                            <div class="mt-1 border-t border-zinc-700 pt-1">
-                                <span class="text-xs text-zinc-400">SEVERITY:</span>
-                                <span class="text-sm font-bold ml-1">${h.severity}g</span>
-                            </div>
-                        </div>
-                    `))
-                    .addTo(map);
+                el.className = 'w-3 h-3 rounded-full border-2 border-white shadow-lg ' + (h.severity > 7 ? 'bg-red-500 animate-pulse' : 'bg-yellow-500');
+                const marker = new mapboxgl.Marker(el).setLngLat([h.lng, h.lat]).addTo(map);
                 markers.push(marker);
 
                 const item = document.createElement('div');
-                item.className = 'p-4 bg-zinc-800/50 rounded-xl border border-zinc-700/50 cursor-pointer hover:bg-zinc-800 transition active:scale-95';
+                item.className = 'p-4 bg-zinc-800/50 rounded-xl border border-zinc-700/50 cursor-pointer active:scale-95';
                 item.onclick = () => {
                     map.flyTo({ center: [h.lng, h.lat], zoom: 15 });
                     if (window.innerWidth < 1024) toggleSidebar();
                 };
-                item.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <span class="text-xs font-bold uppercase tracking-wider ${h.severity > 7 ? 'text-red-500' : 'text-yellow-500'}">${h.type}</span>
-                        <span class="text-xs text-zinc-500">${h.severity}g</span>
-                    </div>
-                    <p class="text-[10px] text-zinc-500 mt-1 uppercase font-bold">LAT: ${h.lat.toFixed(4)} | LNG: ${h.lng.toFixed(4)}</p>
-                `;
+                item.innerHTML = `<div class="flex justify-between">
+                    <span class="text-xs font-bold uppercase ${h.severity > 7 ? 'text-red-500' : 'text-yellow-500'}">${h.type}</span>
+                    <span class="text-xs text-zinc-500">${h.severity}g</span>
+                </div>`;
                 list.appendChild(item);
             });
         }
 
-        document.getElementById('searchInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') fetchHazards(e.target.value);
-        });
+        // Standard Mobile Nav
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
+        function showMap() { document.getElementById('sidebar').classList.add('-translate-x-full'); }
+        function focusSearch() { 
+            document.getElementById('sidebar').classList.remove('-translate-x-full');
+            setTimeout(() => document.getElementById('searchInput').focus(), 300);
+        }
 
-        map.on('load', () => {
-            fetchHazards();
-        });
+        document.getElementById('geolocateBtn').onclick = async () => {
+            const pos = await Geolocation.getCurrentPosition();
+            map.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 16 });
+        };
+
+        map.on('load', fetchHazards);
     </script>
 </body>
 </html>
