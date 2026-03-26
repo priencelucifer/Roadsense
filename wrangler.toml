@@ -1,9 +1,7 @@
-name = "roadsense-dashboard"
+name = "roadsense-app-v2"
 pages_build_output_dir = "public"
 
-# Cloudflare Pages D1 Database Binding
-# The GitHub action will use this for production and previews
 [[d1_databases]]
-binding = "DB" 
-database_name = "roadsense-db-prod"
-database_id = "48c9f17c-457e-4586-8f71-6a5dd88f35ce"
+binding = "DB"
+database_name = "roadsense-db-v2"
+database_id = "18b7228d-50ef-4ea6-9827-2d25d69a2343"
