@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">RoadSense</string>
-    <string name="title_activity_main">RoadSense</string>
-    <string name="package_name">com.roadsense.app</string>
-    <string name="custom_url_scheme">com.roadsense.app</string>
-</resources>

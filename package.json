@@ -12,12 +12,5 @@
   "type": "commonjs",
   "devDependencies": {
     "wrangler": "^4.77.0"
-  },
-  "dependencies": {
-    "@capacitor-community/text-to-speech": "^8.0.0",
-    "@capacitor/android": "^8.3.0",
-    "@capacitor/cli": "^8.3.0",
-    "@capacitor/core": "^8.3.0",
-    "@capacitor/geolocation": "^8.1.0"
   }
 }

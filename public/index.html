@@ -2,7 +2,11 @@
 <html class="dark" lang="en">
 <head>
     <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+    <meta name="theme-color" content="#09090b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
     <title>RoadSense Live Analytics</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
@@ -80,16 +84,10 @@
         </button>
     </nav>
 
-    <!-- Capacitor JS -->
-    <script src="capacitor.js"></script>
     <script>
         const API_BASE = 'https://main.roadsense-dashboard.pages.dev';
         const MAPBOX_TOKEN = 'pk.eyJ1Ijoicmlja3k5NjY5IiwiYSI6ImNtbjRwZm1odDAyZjYycnM5dmNybWxqZG0ifQ.W9UjjaYKr6l7bNxuSdHQZA';
         mapboxgl.accessToken = MAPBOX_TOKEN;
-
-        // Capacitor Plugins
-        const { Geolocation } = Capacitor.Plugins;
-        const { TextToSpeech } = Capacitor.Plugins;
 
         const map = new mapboxgl.Map({
             container: 'map',
@@ -99,23 +97,27 @@
             attributionControl: false
         });
 
+        // Initialize GeolocateControl (The Blue Dot)
+        const geolocate = new mapboxgl.GeolocateControl({
+            positionOptions: {
+                enableHighAccuracy: true // Precise mobile GPS
+            },
+            trackUserLocation: true, // Moves the dot as the driver moves
+            showUserHeading: true    // Shows the directional cone/arrow
+        });
+
+        // Add the control to the map (Adds the default Mapbox target button)
+        map.addControl(geolocate);
+
         let markers = [];
         let hazardsData = [];
         let isDriveMode = false;
         let watchId = null;
 
-        async function speak(text) {
-            try {
-                await TextToSpeech.speak({
-                    text: text,
-                    lang: 'en-US',
-                    rate: 1.0,
-                    pitch: 1.0,
-                    volume: 1.0,
-                    category: 'ambient'
-                });
-            } catch (e) {
-                console.error('Speech error', e);
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                window.speechSynthesis.speak(utterance);
             }
         }
 
@@ -128,7 +130,7 @@
                 btn.classList.replace('bg-zinc-800', 'bg-red-600');
                 btn.innerHTML = `<span class="material-symbols-outlined text-sm">directions_car</span> DRIVE MODE: ON`;
                 border.style.display = 'block';
-                await speak("Drive mode activated. Monitoring for road hazards.");
+                speak("Drive mode activated. Monitoring for road hazards.");
                 startTracking();
             } else {
                 btn.classList.replace('bg-red-600', 'bg-zinc-800');
@@ -138,21 +140,22 @@
             }
         }
 
-        async function startTracking() {
-            watchId = await Geolocation.watchPosition({
-                enableHighAccuracy: true,
-                timeout: 5000
-            }, (position, err) => {
-                if (err) return;
-                const { latitude, longitude } = position.coords;
-                checkProximity(latitude, longitude);
-                map.setCenter([longitude, latitude]);
-            });
+        function startTracking() {
+            if ("geolocation" in navigator) {
+                watchId = navigator.geolocation.watchPosition((position) => {
+                    const { latitude, longitude } = position.coords;
+                    checkProximity(latitude, longitude);
+                    map.setCenter([longitude, latitude]);
+                }, (err) => console.error(err), {
+                    enableHighAccuracy: true,
+                    timeout: 5000
+                });
+            }
         }
 
         function stopTracking() {
-            if (watchId) {
-                Geolocation.clearWatch({ id: watchId });
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
                 watchId = null;
             }
         }
@@ -212,7 +215,6 @@
             });
         }
 
-        // Standard Mobile Nav
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
         function showMap() { document.getElementById('sidebar').classList.add('-translate-x-full'); }
         function focusSearch() { 
@@ -220,12 +222,19 @@
             setTimeout(() => document.getElementById('searchInput').focus(), 300);
         }
 
-        document.getElementById('geolocateBtn').onclick = async () => {
-            const pos = await Geolocation.getCurrentPosition();
-            map.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 16 });
+        document.getElementById('geolocateBtn').onclick = () => {
+            // Trigger the native Mapbox control which handles orientation and tracking
+            geolocate.trigger();
         };
 
         map.on('load', fetchHazards);
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+            });
+        }
     </script>
 </body>
 </html>
