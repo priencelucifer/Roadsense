@@ -19,6 +19,33 @@
         #map { height: 100%; width: 100%; position: absolute; top: 0; bottom: 0; }
         .mapboxgl-popup-content { background: #18181b; color: white; border: 1px solid #27272a; border-radius: 12px; }
         .drive-mode-overlay { pointer-events: none; border: 4px solid #ef4444; z-index: 100; display: none; }
+        
+        /* D-Pad Styles */
+        .dpad-container {
+            display: none;
+            position: fixed;
+            bottom: 100px;
+            left: 20px;
+            z-index: 100;
+            grid-template-areas: 
+                ". up ."
+                "left . right"
+                ". down .";
+            gap: 8px;
+        }
+        .dpad-btn {
+            width: 48px;
+            height: 48px;
+            background: rgba(24, 24, 27, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(63, 63, 70, 0.5);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .dpad-btn:active { transform: scale(0.9); background: #ef4444; }
     </style>
 </head>
 <body class="bg-zinc-950 text-white overflow-hidden flex flex-col h-screen">
@@ -27,10 +54,15 @@
     <!-- Top Bar -->
     <header class="p-4 bg-zinc-900 border-b border-zinc-800 flex justify-between items-center z-30">
         <h1 class="text-xl font-bold font-headline tracking-tighter text-red-500">RoadSense</h1>
-        <button id="driveModeBtn" onclick="toggleDriveMode()" class="bg-zinc-800 px-4 py-1.5 rounded-full text-xs font-bold border border-zinc-700 active:scale-95 transition flex items-center gap-2">
-            <span class="material-symbols-outlined text-sm">directions_car</span>
-            DRIVE MODE: OFF
-        </button>
+        <div class="flex gap-2">
+            <button id="testModeBtn" onclick="toggleTestMode()" class="bg-zinc-800 px-4 py-1.5 rounded-full text-[10px] font-bold border border-zinc-700 active:scale-95 transition">
+                TEST MODE: OFF
+            </button>
+            <button id="driveModeBtn" onclick="toggleDriveMode()" class="bg-zinc-800 px-4 py-1.5 rounded-full text-xs font-bold border border-zinc-700 active:scale-95 transition flex items-center gap-2">
+                <span class="material-symbols-outlined text-sm">directions_car</span>
+                DRIVE MODE: OFF
+            </button>
+        </div>
     </header>
 
     <div class="flex-1 flex flex-col lg:flex-row relative overflow-hidden">
@@ -65,6 +97,22 @@
                     <span class="material-symbols-outlined">my_location</span>
                 </button>
             </div>
+
+            <!-- Simulation D-Pad -->
+            <div id="dpad" class="dpad-container">
+                <button class="dpad-btn" style="grid-area: up" onclick="moveVirtualCar(0.0001, 0)">
+                    <span class="material-symbols-outlined">keyboard_arrow_up</span>
+                </button>
+                <button class="dpad-btn" style="grid-area: left" onclick="moveVirtualCar(0, -0.0001)">
+                    <span class="material-symbols-outlined">keyboard_arrow_left</span>
+                </button>
+                <button class="dpad-btn" style="grid-area: right" onclick="moveVirtualCar(0, 0.0001)">
+                    <span class="material-symbols-outlined">keyboard_arrow_right</span>
+                </button>
+                <button class="dpad-btn" style="grid-area: down" onclick="moveVirtualCar(-0.0001, 0)">
+                    <span class="material-symbols-outlined">keyboard_arrow_down</span>
+                </button>
+            </div>
         </main>
     </div>
 
@@ -96,16 +144,11 @@
             attributionControl: false
         });
 
-        // Initialize GeolocateControl (The Blue Dot)
         const geolocate = new mapboxgl.GeolocateControl({
-            positionOptions: {
-                enableHighAccuracy: true // Precise mobile GPS
-            },
-            trackUserLocation: true, // Moves the dot as the driver moves
-            showUserHeading: true    // Shows the directional cone/arrow
+            positionOptions: { enableHighAccuracy: true },
+            trackUserLocation: true,
+            showUserHeading: true
         });
-
-        // Add the control to the map (Adds the default Mapbox target button)
         map.addControl(geolocate);
 
         let markers = [];
@@ -113,11 +156,67 @@
         let isDriveMode = false;
         let watchId = null;
 
+        // Simulation Variables
+        let isTestMode = false;
+        let virtualCarMarker = null;
+        let alertedHazards = new Set();
+
         function speak(text) {
             if ('speechSynthesis' in window) {
                 const utterance = new SpeechSynthesisUtterance(text);
                 window.speechSynthesis.speak(utterance);
             }
+        }
+
+        function toggleTestMode() {
+            isTestMode = !isTestMode;
+            const btn = document.getElementById('testModeBtn');
+            const dpad = document.getElementById('dpad');
+
+            if (isTestMode) {
+                btn.classList.replace('bg-zinc-800', 'bg-blue-600');
+                btn.innerText = 'TEST MODE: ON';
+                dpad.style.display = 'grid';
+                
+                const center = map.getCenter();
+                const el = document.createElement('div');
+                el.className = 'w-6 h-6 bg-blue-500 rounded-full border-4 border-white shadow-xl flex items-center justify-center';
+                el.innerHTML = '<span class="material-symbols-outlined text-xs">navigation</span>';
+                
+                virtualCarMarker = new mapboxgl.Marker(el)
+                    .setLngLat([center.lng, center.lat])
+                    .addTo(map);
+                
+                speak("Test mode activated. Use the D-pad to move the virtual car.");
+            } else {
+                btn.classList.replace('bg-blue-600', 'bg-zinc-800');
+                btn.innerText = 'TEST MODE: OFF';
+                dpad.style.display = 'none';
+                if (virtualCarMarker) virtualCarMarker.remove();
+                alertedHazards.clear();
+            }
+        }
+
+        function moveVirtualCar(latDiff, lngDiff) {
+            if (!virtualCarMarker) return;
+            const current = virtualCarMarker.getLngLat();
+            const next = [current.lng + lngDiff, current.lat + latDiff];
+            
+            virtualCarMarker.setLngLat(next);
+            map.panTo(next);
+            checkVirtualProximity(next[1], next[0]);
+        }
+
+        function checkVirtualProximity(lat, lng) {
+            hazardsData.forEach(h => {
+                const dist = calculateDistance(lat, lng, h.lat, h.lng);
+                if (dist < 50 && !alertedHazards.has(h.id)) {
+                    speak(`Warning! ${h.type} ahead in 50 meters.`);
+                    alertedHazards.add(h.id);
+                    // Cooldown: allow re-alert after 30 seconds
+                    setTimeout(() => alertedHazards.delete(h.id), 30000);
+                }
+            });
         }
 
         async function toggleDriveMode() {
@@ -143,8 +242,8 @@
             if ("geolocation" in navigator) {
                 watchId = navigator.geolocation.watchPosition((position) => {
                     const { latitude, longitude } = position.coords;
-                    checkProximity(latitude, longitude);
-                    map.setCenter([longitude, latitude]);
+                    if (!isTestMode) checkProximity(latitude, longitude);
+                    if (!isTestMode) map.setCenter([longitude, latitude]);
                 }, (err) => console.error(err), {
                     enableHighAccuracy: true,
                     timeout: 5000
@@ -176,7 +275,7 @@
         function checkProximity(lat, lng) {
             hazardsData.forEach(h => {
                 const dist = calculateDistance(lat, lng, h.lat, h.lng);
-                if (dist < 50 && (Date.now() - lastAlertTime > 10000)) { // 50 meters, 10s cooldown
+                if (dist < 50 && (Date.now() - lastAlertTime > 10000)) {
                     speak(`Warning! ${h.type} ahead.`);
                     lastAlertTime = Date.now();
                 }
@@ -215,9 +314,7 @@
         }
 
         document.getElementById('searchInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                fetchHazards(e.target.value);
-            }
+            if (e.key === 'Enter') fetchHazards(e.target.value);
         });
 
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
@@ -228,13 +325,11 @@
         }
 
         document.getElementById('geolocateBtn').onclick = () => {
-            // Trigger the native Mapbox control which handles orientation and tracking
             geolocate.trigger();
         };
 
         map.on('load', fetchHazards);
 
-        // Service Worker Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js');
