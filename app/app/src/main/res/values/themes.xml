@@ -1,0 +1,18 @@
+<resources>
+    <style name="ShapeAppearance.RoadSense.Medium" parent="ShapeAppearance.MaterialComponents.SmallComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">16dp</item>
+    </style>
+
+    <style name="ShapeAppearance.RoadSense.Circle" parent="ShapeAppearance.MaterialComponents.SmallComponent">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <style name="Theme.RoadSense" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#f4a237</item>
+        <item name="colorSecondary">#ff7350</item>
+        <item name="android:windowBackground">#0c0e12</item>
+        <item name="android:statusBarColor">#0c0e12</item>
+    </style>
+</resources>

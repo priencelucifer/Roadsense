@@ -1,0 +1,7 @@
+name = "roadsense-app-v2"
+pages_build_output_dir = "public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "roadsense-db-v2"
+database_id = "18b7228d-50ef-4ea6-9827-2d25d69a2343"

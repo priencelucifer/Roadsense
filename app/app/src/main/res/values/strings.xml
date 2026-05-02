@@ -1,0 +1,4 @@
+<resources>
+    <!-- Replace with your own Mapbox secret token. See README "Setup". -->
+    <string name="mapbox_access_token">YOUR_MAPBOX_SECRET_TOKEN_HERE</string>
+</resources>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
+    <meta name="theme-color" content="#09090b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
+    <title>RoadSense Live Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet' />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Inter:wght@400;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-headline { font-family: 'Space+Grotesk', sans-serif; }
+        #map { height: 100%; width: 100%; position: absolute; top: 0; bottom: 0; }
+        .mapboxgl-popup-content { background: #18181b; color: white; border: 1px solid #27272a; border-radius: 12px; }
+        .drive-mode-overlay { pointer-events: none; border: 4px solid #ef4444; z-index: 100; display: none; }
+    </style>
+</head>
+<body class="bg-zinc-950 text-white overflow-hidden flex flex-col h-screen">
+    <div id="driveModeBorder" class="fixed inset-0 drive-mode-overlay"></div>
+
+    <!-- Top Bar -->
+    <header class="p-4 bg-zinc-900 border-b border-zinc-800 flex justify-between items-center z-30">
+        <h1 class="text-xl font-bold font-headline tracking-tighter text-red-500">RoadSense</h1>
+        <button id="driveModeBtn" onclick="toggleDriveMode()" class="bg-zinc-800 px-4 py-1.5 rounded-full text-xs font-bold border border-zinc-700 active:scale-95 transition flex items-center gap-2">
+            <span class="material-symbols-outlined text-sm">directions_car</span>
+            DRIVE MODE: OFF
+        </button>
+    </header>
+
+    <div class="flex-1 flex flex-col lg:flex-row relative overflow-hidden">
+        <!-- Sidebar (Hazard List) -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 w-full lg:w-80 bg-zinc-900 border-r border-zinc-800 flex flex-col z-40 shadow-2xl transition-transform duration-300 -translate-x-full lg:translate-x-0 lg:static">
+            <div class="p-6 border-b border-zinc-800 flex justify-between items-center">
+                <h1 class="text-xl font-bold font-headline tracking-tighter text-red-500">RoadSense</h1>
+                <button onclick="toggleSidebar()" class="lg:hidden p-2 -mr-2 text-zinc-400 hover:text-white">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div id="hazardList" class="flex-1 overflow-y-auto p-4 space-y-3 pb-24 lg:pb-4">
+                <!-- Hazards list -->
+            </div>
+        </aside>
+
+        <!-- Main Content (Map) -->
+        <main class="flex-1 relative">
+            <div id="map"></div>
+            
+            <!-- Speedometer UI -->
+            <div class="absolute bottom-24 left-4 lg:bottom-6 lg:left-6 z-20 flex flex-col items-center justify-center bg-zinc-900/90 backdrop-blur-md p-4 rounded-3xl border border-zinc-800 shadow-2xl min-w-[100px]">
+                <div class="text-3xl font-bold font-headline leading-none"><span id="currentSpeed">0</span></div>
+                <div class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">km/h</div>
+                <div id="speedLimit" class="mt-2 px-3 py-1 bg-red-600 rounded-full text-[10px] font-black italic shadow-lg">LIMIT: --</div>
+            </div>
+
+            <div class="absolute bottom-24 right-4 lg:bottom-6 lg:right-6 z-20 flex flex-col gap-3">
+                <button onclick="fetchHazards()" class="bg-zinc-900/90 backdrop-blur-md p-3 rounded-full border border-zinc-800 text-white shadow-2xl active:scale-90 transition">
+                    <span class="material-symbols-outlined">refresh</span>
+                </button>
+                <button id="geolocateBtn" class="bg-red-600 p-3 rounded-full text-white shadow-2xl active:scale-90 transition">
+                    <span class="material-symbols-outlined">my_location</span>
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav id="bottomNav" class="lg:hidden grid grid-cols-2 bg-zinc-900/95 backdrop-blur-lg border-t border-zinc-800 h-16 z-50 fixed bottom-0 left-0 right-0">
+        <button onclick="showMap()" id="navMap" class="flex flex-col items-center justify-center text-red-500">
+            <span class="material-symbols-outlined">map</span>
+            <span class="text-[10px] font-bold uppercase mt-0.5">Map</span>
+        </button>
+        <button onclick="toggleSidebar()" id="navHazards" class="flex flex-col items-center justify-center text-zinc-400">
+            <span class="material-symbols-outlined">warning</span>
+            <span class="text-[10px] font-bold uppercase mt-0.5">Hazards</span>
+        </button>
+    </nav>
+
+    <script>
+        const MAPBOX_TOKEN = 'YOUR_MAPBOX_PUBLIC_TOKEN_HERE';
+        mapboxgl.accessToken = MAPBOX_TOKEN;
+
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/dark-v11',
+            center: [91.7362, 26.1445],
+            zoom: 11,
+            attributionControl: false
+        });
+
+        const geolocate = new mapboxgl.GeolocateControl({
+            positionOptions: { enableHighAccuracy: true },
+            trackUserLocation: true,
+            showUserHeading: true
+        });
+        map.addControl(geolocate);
+
+        let markers = [];
+        let hazardsData = [];
+        let isDriveMode = false;
+        let alertedHazards = new Set();
+
+        function playVoiceAlert(message) {
+            if (window.AndroidApp && window.AndroidApp.speakAlert) {
+                window.AndroidApp.speakAlert(message);
+            } else {
+                let speech = new SpeechSynthesisUtterance(message);
+                window.speechSynthesis.speak(speech);
+            }
+        }
+
+        // Real GPS Proximity Alerting & Speedometer Logic
+        geolocate.on('geolocate', (e) => {
+            // Speed Calculation
+            const speed = e.coords.speed || 0;
+            const speedKmh = Math.round(speed * 3.6);
+            document.getElementById('currentSpeed').innerText = speedKmh;
+
+            const userLat = e.coords.latitude;
+            const userLon = e.coords.longitude;
+
+            // Speed Limit Detection
+            const point = map.project([userLon, userLat]);
+            const features = map.queryRenderedFeatures(point, { layers: ['road-label', 'road'] });
+            let limit = "--";
+            if (features.length > 0) {
+                const props = features[0].properties;
+                limit = props.speed_limit || props.maxspeed || "--";
+            }
+            document.getElementById('speedLimit').innerText = `LIMIT: ${limit}`;
+
+            if (!isDriveMode) return;
+            
+            // Dynamic Alert Proximity
+            const dynamicAlertRange = Math.max(50, speedKmh * 2);
+            
+            hazardsData.forEach(h => {
+                const dist = calculateDistance(userLat, userLon, h.lat, h.lng);
+                if (dist < dynamicAlertRange && !alertedHazards.has(h.id)) {
+                    playVoiceAlert("Warning, " + h.type + " " + Math.round(dist) + " meters ahead");
+                    alertedHazards.add(h.id);
+                    // Reset alert for this hazard after 1 minute
+                    setTimeout(() => alertedHazards.delete(h.id), 60000);
+                }
+            });
+        });
+
+        async function toggleDriveMode() {
+            isDriveMode = !isDriveMode;
+            const btn = document.getElementById('driveModeBtn');
+            const border = document.getElementById('driveModeBorder');
+
+            if (isDriveMode) {
+                btn.classList.replace('bg-zinc-800', 'bg-red-600');
+                btn.innerHTML = `<span class="material-symbols-outlined text-sm">directions_car</span> DRIVE MODE: ON`;
+                border.style.display = 'block';
+                playVoiceAlert("Drive mode activated. Real-time proximity alerts are now ON.");
+                geolocate.trigger();
+            } else {
+                btn.classList.replace('bg-red-600', 'bg-zinc-800');
+                btn.innerHTML = `<span class="material-symbols-outlined text-sm">directions_car</span> DRIVE MODE: OFF`;
+                border.style.display = 'none';
+                alertedHazards.clear();
+            }
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3; // meters
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        async function fetchHazards() {
+            const res = await fetch('/api/hazards');
+            const data = await res.json();
+            hazardsData = data;
+            
+            markers.forEach(m => m.remove());
+            markers = [];
+            const list = document.getElementById('hazardList');
+            list.innerHTML = '';
+
+            data.forEach(h => {
+                const el = document.createElement('div');
+                el.className = 'w-3 h-3 rounded-full border-2 border-white shadow-lg ' + (h.severity > 7 ? 'bg-red-500 animate-pulse' : 'bg-yellow-500');
+                const marker = new mapboxgl.Marker(el).setLngLat([h.lng, h.lat]).addTo(map);
+                markers.push(marker);
+
+                const item = document.createElement('div');
+                item.className = 'p-4 bg-zinc-800/50 rounded-xl border border-zinc-700/50 cursor-pointer active:scale-95';
+                item.onclick = () => {
+                    map.flyTo({ center: [h.lng, h.lat], zoom: 15 });
+                    if (window.innerWidth < 1024) toggleSidebar();
+                };
+                item.innerHTML = `<div class="flex justify-between">
+                    <span class="text-xs font-bold uppercase ${h.severity > 7 ? 'text-red-500' : 'text-yellow-500'}">${h.type}</span>
+                    <span class="text-xs text-zinc-500">${h.severity}g</span>
+                </div>`;
+                list.appendChild(item);
+            });
+        }
+
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
+        function showMap() { document.getElementById('sidebar').classList.add('-translate-x-full'); }
+
+        document.getElementById('geolocateBtn').onclick = () => {
+            geolocate.trigger();
+        };
+
+        map.on('load', fetchHazards);
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+# ----- Secrets / local config -----
+.env
+.env.*
+*.local
+local.properties
+secrets/
+*.pem
+*.key
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
+firebase-adminsdk*.json
+service-account*.json
+
+# ----- Node / Cloudflare backend (backend/) -----
+node_modules/
+.wrangler/
+dist/
+package-lock.json
+.gemini/
+
+# ----- Android app (app/) -----
+*.iml
+.gradle/
+.idea/
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+
+# ----- OS / editor -----
+.DS_Store
+Thumbs.db
+*.swp
+*~
