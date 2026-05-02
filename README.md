@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://via.placeholder.com/1000x300/ffb86c/000000?text=RoadSense+Banner" alt="RoadSense Banner" width="100%"/>
+  <img src="https://placehold.co/1000x300/ffb86c/000000.png?text=RoadSense+Banner" alt="RoadSense Banner" width="100%"/>
   <h1>🛣️ RoadSense</h1>
   <p><b>Crowd-sourced road hazard reporting for Indian cities.</b></p>
   
