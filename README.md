@@ -1,18 +1,30 @@
 <div align="center">
+  <img src="https://via.placeholder.com/1000x300/ffb86c/000000?text=RoadSense+Banner" alt="RoadSense Banner" width="100%"/>
   <h1>🛣️ RoadSense</h1>
   <p><b>Crowd-sourced road hazard reporting for Indian cities.</b></p>
   
   <p>
-    <a href="https://github.com/priencelucifer/roadsense-public/stargazers">
-      <img src="https://img.shields.io/github/stars/priencelucifer/roadsense-public?style=for-the-badge&color=ffb86c" alt="Stars" />
+    <a href="https://github.com/priencelucifer/ROADSENSE/stargazers">
+      <img src="https://img.shields.io/github/stars/priencelucifer/ROADSENSE?style=for-the-badge&color=ffb86c" alt="Stars" />
     </a>
-    <a href="https://github.com/priencelucifer/roadsense-public/issues">
-      <img src="https://img.shields.io/github/issues/priencelucifer/roadsense-public?style=for-the-badge&color=ff79c6" alt="Issues" />
+    <a href="https://github.com/priencelucifer/ROADSENSE/issues">
+      <img src="https://img.shields.io/github/issues/priencelucifer/ROADSENSE?style=for-the-badge&color=ff79c6" alt="Issues" />
     </a>
+    <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge" alt="License"/>
   </p>
 
   <p>Hazards like potholes and speed breakers are submitted by ESP32 IoT devices and Android users, stored in a Cloudflare D1 database at the edge, and visualized as a live heatmap on a web dashboard and an Android map.</p>
 </div>
+
+---
+
+## 📑 Table of Contents
+- [🌟 Key Features](#-key-features)
+- [🛠️ Tech Stack](#️-tech-stack)
+- [📂 Repository Architecture](#-repository-architecture)
+- [🚀 Getting Started](#-getting-started)
+- [🔌 API Reference](#-api-reference)
+- [📝 Important Notes](#-important-notes)
 
 ---
 
