@@ -1,72 +1,100 @@
-# RoadSense
+<div align="center">
+  <h1>🛣️ RoadSense</h1>
+  <p><b>Crowd-sourced road hazard reporting for Indian cities.</b></p>
+  
+  <p>
+    <a href="https://github.com/priencelucifer/roadsense-public/stargazers">
+      <img src="https://img.shields.io/github/stars/priencelucifer/roadsense-public?style=for-the-badge&color=ffb86c" alt="Stars" />
+    </a>
+    <a href="https://github.com/priencelucifer/roadsense-public/issues">
+      <img src="https://img.shields.io/github/issues/priencelucifer/roadsense-public?style=for-the-badge&color=ff79c6" alt="Issues" />
+    </a>
+  </p>
 
-Crowd-sourced road hazard reporting for Indian cities. Hazards (potholes, speed breakers) are submitted by ESP32 IoT devices and Android users, stored in a Cloudflare D1 database at the edge, and visualized as a live heatmap on a web dashboard and an Android map.
-
-> **Status:** active · **Coverage:** Guwahati, Delhi · **Stack:** Cloudflare Pages + D1 · Kotlin · Mapbox
-
----
-
-## Repo layout
-
-This is a sanitized merge of two previously private repositories.
-
-| Path | What it is | Stack |
-| --- | --- | --- |
-| [`backend/`](./backend) | Edge API, web dashboard, ESP32 simulator | Cloudflare Pages · Pages Functions · D1 · Mapbox GL JS |
-| [`app/`](./app) | Android client | Kotlin · Mapbox Maps SDK v11 · OkHttp · Coroutines |
-
-## How it fits together
-
-```
-   ESP32 device                              Android app
-        │                                         │
-        │  POST /api/hazards (secret_key)         │  POST /api/login
-        │                                         │  POST /api/signup
-        │                                         │  GET  /api/hazards
-        ▼                                         ▼
-   ┌──────────────────────────────────────────────────────┐
-   │  Cloudflare Pages Functions  (backend/functions/api) │
-   │           + D1 database  (schema.sql)                │
-   └──────────────────────────┬───────────────────────────┘
-                              │
-                              ▼
-                     Web dashboard (backend/public)
-```
+  <p>Hazards like potholes and speed breakers are submitted by ESP32 IoT devices and Android users, stored in a Cloudflare D1 database at the edge, and visualized as a live heatmap on a web dashboard and an Android map.</p>
+</div>
 
 ---
 
-## Setup
+## 🌟 Key Features
 
-You'll need a [Mapbox](https://account.mapbox.com/) account (public + secret tokens) and a [Cloudflare](https://dash.cloudflare.com/) account.
+- **📡 IoT Integration:** Seamlessly receive hazard data from ESP32 devices on vehicles.
+- **📱 Android App:** Empower users to view hazards on an interactive map and report new ones.
+- **🗺️ Live Heatmap:** Web dashboard powered by Mapbox GL JS for real-time hazard visualization.
+- **⚡ Edge Computing:** Lightning-fast APIs using Cloudflare Pages Functions and D1 Database.
 
-### Backend
+> **Status:** Active &nbsp;·&nbsp; **Coverage:** Guwahati, Delhi
+
+---
+
+## 🛠️ Tech Stack
+
+<div align="center">
+  <img src="https://img.shields.io/badge/Cloudflare_Pages-F38020?style=for-the-badge&logo=Cloudflare&logoColor=white" alt="Cloudflare Pages" />
+  <img src="https://img.shields.io/badge/Cloudflare_D1-F38020?style=for-the-badge&logo=Cloudflare&logoColor=white" alt="Cloudflare D1" />
+  <img src="https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin" />
+  <img src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android" />
+  <img src="https://img.shields.io/badge/Mapbox-000000?style=for-the-badge&logo=mapbox&logoColor=white" alt="Mapbox" />
+</div>
+
+---
+
+## 📂 Repository Architecture
+
+This repository is a sanitized merge of two previously private projects.
+
+| Path | Description | Technologies |
+| :--- | :--- | :--- |
+| 📁 [`backend/`](./backend) | Edge API, web dashboard, ESP32 simulator | Cloudflare Pages, Functions, D1, Mapbox GL JS |
+| 📁 [`app/`](./app) | Native Android client application | Kotlin, Mapbox Maps SDK v11, OkHttp, Coroutines |
+
+### System Diagram
+
+```mermaid
+graph TD
+    A[ESP32 Device] -->|POST /api/hazards| C(Cloudflare Pages Functions)
+    B[Android App] -->|POST /api/login/signup| C
+    B -->|GET /api/hazards| C
+    C <--> D[(Cloudflare D1 Database)]
+    C -->|Serve JSON/Map| E[Web Dashboard]
+```
+
+---
+
+## 🚀 Getting Started
+
+To run this project locally, you will need a [Mapbox](https://account.mapbox.com/) account (public + secret tokens) and a [Cloudflare](https://dash.cloudflare.com/) account.
+
+### 🌐 Backend Setup
 
 ```bash
 cd backend
 npm i -g wrangler
 
-# create the D1 database, then paste the database_id into wrangler.toml
+# 1. Create the D1 database, then paste the database_id into wrangler.toml
 wrangler d1 create roadsense-db-v2
 
-# apply schema (and optional seed)
+# 2. Apply schema (and optional seed)
 wrangler d1 execute roadsense-db-v2 --file=./schema.sql
 wrangler d1 execute roadsense-db-v2 --file=./add_delhi.sql
 
-# set the shared secret used by the ESP32 simulator
+# 3. Set the shared secret used by the ESP32 simulator
 wrangler pages secret put API_SECRET_KEY
 
-# replace YOUR_MAPBOX_PUBLIC_TOKEN_HERE in public/index.html with your pk.* token
+# 4. Replace YOUR_MAPBOX_PUBLIC_TOKEN_HERE in public/index.html with your pk.* token
 wrangler pages deploy public
 ```
 
-### ESP32 simulator
+### 💻 ESP32 Simulator
+
+Test the ingestion API without physical hardware:
 
 ```bash
 cd backend
 API_SECRET_KEY=your-secret-here node test_esp32.js
 ```
 
-### Android app
+### 📱 Android App Setup
 
 1. Create `app/local.properties` with your Mapbox **secret** download token:
    ```properties
@@ -74,45 +102,32 @@ API_SECRET_KEY=your-secret-here node test_esp32.js
    MAPBOX_DOWNLOADS_TOKEN=sk.your_mapbox_secret_token_here
    ```
 2. Open `app/app/src/main/res/values/strings.xml` and replace `YOUR_MAPBOX_SECRET_TOKEN_HERE` with your runtime Mapbox secret token.
-3. If your backend is not at `roadsense-app-v2.pages.dev`, update the URLs in:
-   - `app/app/src/main/java/com/ricky/roadsense/MainActivity.kt`
-   - `app/app/src/main/java/com/ricky/roadsense/LoginActivity.kt`
-   - `app/app/src/main/java/com/ricky/roadsense/SignupActivity.kt`
-4. Open in Android Studio (JDK 17, Android SDK 34) and run.
+3. If your backend is not deployed at `roadsense-app-v2.pages.dev`, update the base URLs in:
+   - `MainActivity.kt`
+   - `LoginActivity.kt`
+   - `SignupActivity.kt`
+4. Open the `app/` directory in Android Studio (JDK 17, Android SDK 34) and run the application.
 
 ---
 
-## API
+## 🔌 API Reference
 
-| Method | Path | Auth | Purpose |
-| --- | --- | --- | --- |
-| `GET` | `/api/hazards` | — | List hazards (web map + Android) |
-| `POST` | `/api/hazards` | `secret_key` in body | Submit a new hazard (ESP32) |
-| `POST` | `/api/login` | password in body | User login |
-| `POST` | `/api/signup` | password in body | User signup |
-| `GET` | `/api/search` | — | Location / place search |
+| Method | Endpoint | Auth Required | Description |
+| :---: | :--- | :--- | :--- |
+| `GET` | `/api/hazards` | None | Retrieve hazard list for map plotting. |
+| `POST` | `/api/hazards` | `secret_key` | Submit a new hazard (used by ESP32). |
+| `POST` | `/api/login` | `password` | Authenticate Android user. |
+| `POST` | `/api/signup` | `password` | Register new Android user. |
+| `GET` | `/api/search` | None | Forward geocoding / place search. |
 
 ---
 
-## Tree
+## 📝 Important Notes
 
-```
-.
-├── backend/                  Cloudflare Pages + Functions + D1 + dashboard
-│   ├── functions/api/          hazards · search · login · signup
-│   ├── public/                 static dashboard (Mapbox GL JS)
-│   ├── schema.sql              D1 schema
-│   ├── add_delhi.sql           optional seed data
-│   ├── test_esp32.js           ESP32 device simulator
-│   └── wrangler.toml           Cloudflare config
-└── app/                      Android app (Kotlin)
-    ├── app/                    module sources
-    ├── build.gradle.kts
-    └── settings.gradle.kts
-```
+- **Security:** Every credential in this repository is a placeholder. **Supply your own keys and never commit real tokens.**
+- **History:** This repository is a sanitized merge of previously internal projects. Original commit history is not preserved.
+- **Forking:** The Android package is `com.ricky.roadsense`. Remember to rename it if you are forking this for production use.
 
-## Notes
-
-- Every credential in this repo is a placeholder. Supply your own; never commit real tokens.
-- This is a sanitized merge — original commit history is not preserved.
-- Android package: `com.ricky.roadsense` (rename if forking for production).
+<div align="center">
+  Made with ❤️ for safer roads.
+</div>
